@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Este es mi tercer YAML 
+  para cloudformation en la nube de AWS
+
+Parameters:
+  VPCpeParameter:
+    Type: String
+    Default: "vpc-0387a2c81ea5d1966"
+  ImagepeParameter:
+    Type: String
+    Default: "ami-053b0d53c279acc90"
+  KeyNamepeParameter:
+    Type: String
+    Default: "keyPrueba"
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+Resources:
+  MyInstanceEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: !Ref ImagepeParameter
+      KeyName: !Ref KeyNamepeParameter
+      InstanceType: !Ref InstanceTypeParameter
+      SecurityGroupIds: 
+        - Ref: SecurityGroupSSH
+
+  SecurityGroupSSH:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: "SSH security group"
+      GroupName: "SSH security group"
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+
+      
