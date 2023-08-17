@@ -29,6 +29,9 @@ Outputs:
   IDInstancia:
     Description: ID de la instancia que hemos creado
     Value: MyInstanceEC2
+  ElasticIP:
+    Description: Valor de la IP elastica
+    Value: !Ref MyEIP
 
 # Recursos que se van creando.
 Resources:
@@ -45,10 +48,11 @@ Resources:
           Ebs:
             VolumeType: gp2
             VolumeSize: '10'
-            DeleteOnTermination: 'false'
+            DeleteOnTermination: 'true'
             Encrypted: 'true'
       SecurityGroupIds: 
-        - Ref: SecurityGroupSSH
+        - Ref: SSHSecurityGroup
+        - Ref: ServerSecurityGroup
       UserData: 
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -58,10 +62,17 @@ Resources:
           systemctl enable httpd
           echo "<h1>Hola Mundo desde $(hostname -f)</h1>" > /var/www/html/index.html
 
-  SecurityGroupSSH:
+  # una IP elastica para nuestra instancia
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyInstanceEC2
+
+  # nuestro grupo de seguridad EC2 SSH
+  SSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: "SSH security group"
+    Properties:
+      GroupDescription: Habilita el acceso SSH a traves del puerto 22
       GroupName: "SSH security group"
       VpcId: !Ref VPCpeParameter
       SecurityGroupIngress:
@@ -69,9 +80,27 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  # nuestro segundo grupo de seguridad EC2 HTTP y HTTPS
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Grupo de seguridad para el servidor
+      GroupName: "Grupo de seguridad EC2"
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -79,4 +108,4 @@ Resources:
           ToPort: -1
           CidrIp: 0.0.0.0/0
 
-      
+ 
