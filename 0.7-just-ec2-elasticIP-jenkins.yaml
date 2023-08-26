@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Este es mi tercer YAML 
+  para cloudformation en la nube de AWS
+
+#Parametros de entrada para el cloudformation
+Parameters:
+  VPCpeParameter:
+    Type: String
+    Default: "vpc-0387a2c81ea5d1966"
+  ImagepeParameter:
+    Type: String
+    Default: "ami-053b0d53c279acc90"
+  KeyNamepeParameter:
+    Type: String
+    Default: "keyPrueba"
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+# Salidas del cloudformation, notificando que todo esta bien
+Outputs:
+  IDInstancia:
+    Description: ID de la instancia que hemos creado
+    Value: MyInstanceEC2
+  ElasticIP:
+    Description: Valor de la IP elastica
+    Value: !Ref MyEIP
+
+# Recursos que se van creando.
+Resources:
+# Instancia EC2 creada
+  MyInstanceEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: !Ref ImagepeParameter
+      KeyName: !Ref KeyNamepeParameter
+      InstanceType: !Ref InstanceTypeParameter
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '10'
+            DeleteOnTermination: 'true'
+            Encrypted: 'true'
+      SecurityGroupIds: 
+        - Ref: SSHSecurityGroup
+        - Ref: ServerSecurityGroup
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt install openjdk-11-jdk -y
+          wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key |sudo gpg --dearmor -o /usr/share/keyrings/jenkins.gpg
+          sudo sh -c 'echo deb [signed-by=/usr/share/keyrings/jenkins.gpg] http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+          sudo apt update
+          sudo apt install jenkins -y
+
+  # una IP elastica para nuestra instancia
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyInstanceEC2
+
+  # nuestro grupo de seguridad EC2 SSH
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Habilita el acceso SSH a traves del puerto 22
+      GroupName: "SSH security group"
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  # nuestro segundo grupo de seguridad EC2 HTTP y HTTPS
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Grupo de seguridad para el servidor
+      GroupName: "Grupo de seguridad EC2"
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+ 
