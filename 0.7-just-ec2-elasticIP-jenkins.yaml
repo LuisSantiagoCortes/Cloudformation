@@ -44,7 +44,7 @@ Resources:
       KeyName: !Ref KeyNamepeParameter
       InstanceType: !Ref InstanceTypeParameter
       BlockDeviceMappings:
-        - DeviceName: /dev/xvda
+        - DeviceName: /dev/sda1
           Ebs:
             VolumeType: gp2
             VolumeSize: '10'
@@ -74,7 +74,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Habilita el acceso SSH a traves del puerto 22
-      GroupName: "SSH security group"
+      GroupName: "SSH security group dddddd"
       VpcId: !Ref VPCpeParameter
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -92,7 +92,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Grupo de seguridad para el servidor
-      GroupName: "Grupo de seguridad EC2"
+      GroupName: "Grupo de seguridad EC2 dddd" 
       VpcId: !Ref VPCpeParameter
       SecurityGroupIngress:
         - IpProtocol: tcp
