@@ -38,3 +38,12 @@ Revisar la credencial de login
 
 Link de apoyo
 - https://www.jenkins.io/doc/book/installing/linux/
+
+
+## Utilizando la imagen de docker jenkins 
+
+Para ingresar al contenedor de docker
+- sudo docker exec -it myjenkins /bin/bash
+
+A fin de mostrar la credencial
+- cat /var/jenkins_home/secrets/initialAdminPassword

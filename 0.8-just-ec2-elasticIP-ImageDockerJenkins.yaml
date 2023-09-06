@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Este es mi tercer YAML 
+  para cloudformation en la nube de AWS
+
+#Parametros de entrada para el cloudformation
+Parameters:
+  VPCpeParameter:
+    Type: String
+    Default: "vpc-0387a2c81ea5d1966"
+  ImagepeParameter:
+    Type: String
+    Default: "ami-053b0d53c279acc90"
+  KeyNamepeParameter:
+    Type: String
+    Default: "keyPrueba"
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+# Salidas del cloudformation, notificando que todo esta bien
+Outputs:
+  IDInstancia:
+    Description: ID de la instancia que hemos creado
+    Value: MyInstanceEC2
+  ElasticIP:
+    Description: Valor de la IP elastica
+    Value: !Ref MyEIP
+
+# Recursos que se van creando.
+Resources:
+# Instancia EC2 creada
+  MyInstanceEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: !Ref ImagepeParameter
+      KeyName: !Ref KeyNamepeParameter
+      InstanceType: !Ref InstanceTypeParameter
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '10'
+            DeleteOnTermination: 'true'
+            Encrypted: 'true'
+      SecurityGroupIds: 
+        - Ref: SSHSecurityGroup
+        - Ref: ServerSecurityGroup
+        - Ref: JenkinsSecurityGroup
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt update -y
+          sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt update -y
+          apt-cache policy docker-ce
+          sudo apt install docker-ce -y
+          sudo docker pull jenkins/jenkins:latest
+          sudo docker run -d --name myjenkins -p 8080:8080 -p 50000:50000 --restart=on-failure jenkins/jenkins:latest
+
+  # una IP elastica para nuestra instancia
+  MyEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref MyInstanceEC2
+
+  # nuestro grupo de seguridad EC2 SSH
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Habilita el acceso SSH a traves del puerto 22
+      GroupName: "SSH security group"
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  # nuestro segundo grupo de seguridad EC2 HTTP y HTTPS
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Grupo de seguridad para el servidor
+      GroupName: "SERVER security group" 
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  # nuestro segundo grupo de seguridad EC2 Jenkins
+  JenkinsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Grupo de seguridad para los puestos de jenkins
+      GroupName: "JENKINS security group" 
+      VpcId: !Ref VPCpeParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
