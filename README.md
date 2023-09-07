@@ -42,6 +42,12 @@ Link de apoyo
 
 ## Utilizando la imagen de docker jenkins 
 
+Imagen oficial de jenkins 
+- https://hub.docker.com/r/jenkins/jenkins
+
+Documentación de jenkins
+- https://github.com/jenkinsci/docker/blob/master/README.md
+
 Para ingresar al contenedor de docker
 - sudo docker exec -it myjenkins /bin/bash
 

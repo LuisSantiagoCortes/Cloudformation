@@ -1,14 +1,18 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 
 Description: >
-  Este es mi tercer YAML 
+  Este es mi primer arquitectura de red con YAML 
   para cloudformation en la nube de AWS
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMIID: ami-0b33d91d
+    us-east-2:
+      AMIID: ami-c55673a0
 
 #Parametros de entrada para el cloudformation
 Parameters:
-  VPCpeParameter:
-    Type: String
-    Default: "vpc-0387a2c81ea5d1966"
   ImagepeParameter:
     Type: String
     Default: "ami-053b0d53c279acc90"
@@ -24,22 +28,87 @@ Parameters:
       - t3.small
     Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
 
+
 # Salidas del cloudformation, notificando que todo esta bien
 Outputs:
   IDInstancia:
     Description: ID de la instancia que hemos creado
     Value: MyInstanceEC2
-  ElasticIP:
-    Description: Valor de la IP elastica
-    Value: !Ref MyEIP
 
 # Recursos que se van crear.
 Resources:
+  # Crea la VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.71.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+      - Key: Name
+        Value: VPC_Jenkins
+
+  # Crea la Subnet
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1c
+      CidrBlock: 10.71.3.0/24
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: Subnet_Jenkins
+
+  # Crea InternetGateway      
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: IGW_Jenkins
+  # Atacha el internetgatway 
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  # Se agrega una VPC a una route table
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: RT_Jenkins
+  
+  PublicOutboundRule:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: RouteTable
+  # Se agrega la subnet a una route table
+  SubnetAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      SubnetId:
+        Ref: Subnet
+
+  
 # Instancia EC2 creada
   MyInstanceEC2:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: us-east-1a
       ImageId: !Ref ImagepeParameter
       KeyName: !Ref KeyNamepeParameter
       InstanceType: !Ref InstanceTypeParameter
@@ -54,7 +123,9 @@ Resources:
         - Ref: SSHSecurityGroup
         - Ref: ServerSecurityGroup
         - Ref: JenkinsSecurityGroup
-      UserData: 
+      SubnetId:
+        Ref: Subnet
+      UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           sudo apt update -y
@@ -70,19 +141,15 @@ Resources:
         - Key: Name
           Value: Servidor_Jenkins
 
-  # una IP elastica para nuestra instancia
-  MyEIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      InstanceId: !Ref MyInstanceEC2
 
-  # nuestro grupo de seguridad EC2 SSH
+# nuestro grupo de seguridad EC2 SSH
   SSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Habilita el acceso SSH a traves del puerto 22
       GroupName: "SSH security group"
-      VpcId: !Ref VPCpeParameter
+      VpcId: 
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -105,7 +172,8 @@ Resources:
     Properties:
       GroupDescription: Grupo de seguridad para el servidor
       GroupName: "SERVER security group" 
-      VpcId: !Ref VPCpeParameter
+      VpcId: 
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -133,7 +201,8 @@ Resources:
     Properties:
       GroupDescription: Grupo de seguridad para los puestos de jenkins
       GroupName: "JENKINS security group" 
-      VpcId: !Ref VPCpeParameter
+      VpcId: 
+        Ref: VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8080
